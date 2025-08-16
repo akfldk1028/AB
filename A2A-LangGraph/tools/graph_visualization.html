@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LangGraph 시각화 - A2A Currency Agent</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .mermaid {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .description {
+            margin-top: 30px;
+            line-height: 1.6;
+        }
+        .flow-step {
+            background: #f8f9fa;
+            padding: 10px;
+            margin: 5px 0;
+            border-left: 4px solid #007bff;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 A2A Currency Agent - LangGraph 구조</h1>
+        
+        <div class="info">
+            <h3>📊 그래프 정보</h3>
+            <ul>
+                <li><strong>노드 수:</strong> 5개</li>
+                <li><strong>엣지 수:</strong> 5개</li>
+                <li><strong>타입:</strong> ReAct (Reasoning + Acting) Agent</li>
+                <li><strong>도구:</strong> MCP 서버의 get_exchange_rate</li>
+            </ul>
+        </div>
+
+        <div class="mermaid">
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	agent(agent)
+	tools(tools)
+	generate_structured_response(generate_structured_response)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> agent;
+	generate_structured_response --> __end__;
+	tools --> agent;
+	agent -.-> tools;
+	agent -.-> generate_structured_response;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc
+        </div>
+
+        <div class="description">
+            <h3>🔄 실행 흐름 설명</h3>
+            
+            <div class="flow-step">
+                <strong>1. __start__</strong> - 사용자 쿼리가 들어오면 그래프 실행 시작
+            </div>
+            
+            <div class="flow-step">
+                <strong>2. agent</strong> - GPT-4o-mini 모델이 사용자 쿼리를 분석하고 다음 액션 결정
+                <ul>
+                    <li>환율 조회가 필요하면 → tools로 이동</li>
+                    <li>충분한 정보가 있으면 → generate_structured_response로 이동</li>
+                </ul>
+            </div>
+            
+            <div class="flow-step">
+                <strong>3. tools</strong> - MCP 서버의 get_exchange_rate 도구 실행
+                <ul>
+                    <li>실제 환율 데이터 조회 (현재는 Mock 데이터)</li>
+                    <li>결과를 agent로 다시 전달</li>
+                </ul>
+            </div>
+            
+            <div class="flow-step">
+                <strong>4. generate_structured_response</strong> - 최종 응답을 구조화된 형태로 생성
+                <ul>
+                    <li>status: "completed", "input_required", "error"</li>
+                    <li>message: 사용자에게 전달할 메시지</li>
+                </ul>
+            </div>
+            
+            <div class="flow-step">
+                <strong>5. __end__</strong> - 그래프 실행 완료, 결과 반환
+            </div>
+
+            <h3>💡 특징</h3>
+            <ul>
+                <li><strong>조건부 분기:</strong> agent 노드에서 상황에 따라 다른 경로 선택</li>
+                <li><strong>순환 구조:</strong> tools → agent로 돌아와서 추가 처리 가능</li>
+                <li><strong>메모리 체크포인트:</strong> 대화 상태 유지</li>
+                <li><strong>구조화된 출력:</strong> 일관된 응답 형식</li>
+            </ul>
+
+            <h3>🔗 현재 실행 중인 시스템</h3>
+            <ul>
+                <li><strong>MCP 서버:</strong> http://localhost:3000 (도구 제공)</li>
+                <li><strong>Worker Agent:</strong> http://localhost:8000 (이 그래프 실행)</li>
+                <li><strong>Host Agent:</strong> 대화형 인터페이스 (별도 그래프)</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true
+            }
+        });
+    </script>
+</body>
+</html>
