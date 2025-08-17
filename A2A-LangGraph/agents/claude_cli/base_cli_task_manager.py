@@ -1,12 +1,24 @@
+"""
+Base Task Manager for Claude CLI Agents
+"""
 import asyncio
 import logging
 import traceback
-from typing import AsyncIterable, Union
+from typing import AsyncIterable, Union, Any, Dict, Optional, Protocol, TYPE_CHECKING
+import sys
+from pathlib import Path
 
-from . import utils as utils
-from .abc_task_manager import InMemoryTaskManager
-from .agent import CurrencyAgent
-from .custom_types import (
+try:
+    from typing import TypeAlias
+except ImportError:
+    from typing_extensions import TypeAlias
+
+# Add parent directories to path
+sys.path.append(str(Path(__file__).parent.parent.parent))
+
+from shared import utils as utils
+from shared.abc_task_manager import InMemoryTaskManager
+from shared.custom_types import (
     Artifact,
     InternalError,
     InvalidParamsError,
@@ -30,20 +42,45 @@ from .custom_types import (
     A2AMessage,
     A2AMessagePart,
 )
-from .push_notification_auth import PushNotificationSenderAuth
+from shared.push_notification_auth import PushNotificationSenderAuth
 
 logger = logging.getLogger(__name__)
 
+# Type aliases for better maintainability
+AgentResponse: TypeAlias = Dict[str, Any]
 
-class AgentTaskManager(InMemoryTaskManager):
-    def __init__(
-        self, agent: CurrencyAgent, notification_sender_auth: PushNotificationSenderAuth
-    ):
+def get_projects_directory() -> Path:
+    """Get the projects directory path"""
+    current_file = Path(__file__)
+    projects_dir = current_file.parent.parent.parent / "projects"
+    projects_dir.mkdir(exist_ok=True)
+    return projects_dir
+TaskId: TypeAlias = str
+SessionId: TypeAlias = str
+Query: TypeAlias = str
+
+class CLIAgent(Protocol):
+    """Protocol defining the interface for CLI agents"""
+    SUPPORTED_CONTENT_TYPES: list[str]
+    
+    async def invoke_async(self, query: Query, session_id: SessionId) -> AgentResponse:
+        """Invoke the agent asynchronously"""
+        ...
+    
+    async def stream(self, query: Query, session_id: SessionId) -> AsyncIterable[AgentResponse]:
+        """Stream responses from the agent"""
+        ...
+
+
+class CLIAgentTaskManager(InMemoryTaskManager):
+    """Task Manager for Claude CLI based agents"""
+    
+    def __init__(self, agent: CLIAgent, notification_sender_auth: PushNotificationSenderAuth) -> None:
         super().__init__()
         self.agent = agent
         self.notification_sender_auth = notification_sender_auth
 
-    async def _run_streaming_agent(self, request: SendTaskStreamingRequest):
+    async def _run_streaming_agent(self, request: SendTaskStreamingRequest) -> None:
         task_send_params: TaskSendParams = request.params
         query = self._get_user_query(task_send_params)
 
@@ -102,15 +139,15 @@ class AgentTaskManager(InMemoryTaskManager):
 
     def _validate_request(
         self, request: Union[SendTaskRequest, SendTaskStreamingRequest]
-    ) -> JSONRPCResponse | None:
+    ) -> Optional[JSONRPCResponse]:
         task_send_params: TaskSendParams = request.params
         if not utils.are_modalities_compatible(
-            task_send_params.acceptedOutputModes, CurrencyAgent.SUPPORTED_CONTENT_TYPES
+            task_send_params.acceptedOutputModes, self.agent.SUPPORTED_CONTENT_TYPES
         ):
             logger.warning(
                 "Unsupported output mode. Received %s, Support %s",
                 task_send_params.acceptedOutputModes,
-                CurrencyAgent.SUPPORTED_CONTENT_TYPES,
+                self.agent.SUPPORTED_CONTENT_TYPES,
             )
             return utils.new_incompatible_types_error(request.id)
 
@@ -219,7 +256,7 @@ class AgentTaskManager(InMemoryTaskManager):
 
     async def on_send_task_subscribe(
         self, request: SendTaskStreamingRequest
-    ) -> AsyncIterable[SendTaskStreamingResponse] | JSONRPCResponse:
+    ) -> Union[AsyncIterable[SendTaskStreamingResponse], JSONRPCResponse]:
         try:
             error = self._validate_request(request)
             if error:
@@ -257,7 +294,7 @@ class AgentTaskManager(InMemoryTaskManager):
             )
 
     async def _process_agent_response(
-        self, request: SendTaskRequest, agent_response: dict
+        self, request: SendTaskRequest, agent_response: AgentResponse
     ) -> SendTaskResponse:
         """Processes the agent's response and updates the task store."""
         task_send_params: TaskSendParams = request.params
@@ -282,13 +319,13 @@ class AgentTaskManager(InMemoryTaskManager):
         await self.send_task_notification(task)
         return SendTaskResponse(id=request.id, result=task_result)
 
-    def _get_user_query(self, task_send_params: TaskSendParams) -> str:
+    def _get_user_query(self, task_send_params: TaskSendParams) -> Query:
         part = task_send_params.message.parts[0]
         if not isinstance(part, TextPart):
             raise ValueError("Only text parts are supported")
         return part.text
 
-    async def send_task_notification(self, task: Task):
+    async def send_task_notification(self, task: Task) -> None:
         if not await self.has_push_notification_info(task.id):
             logger.info(f"No push notification info found for task {task.id}")
             return
@@ -300,8 +337,8 @@ class AgentTaskManager(InMemoryTaskManager):
         )
 
     async def on_resubscribe_to_task(
-        self, request
-    ) -> AsyncIterable[SendTaskStreamingResponse] | JSONRPCResponse:
+        self, request: Any
+    ) -> Union[AsyncIterable[SendTaskStreamingResponse], JSONRPCResponse]:
         task_id_params: TaskIdParams = request.params
         try:
             sse_event_queue = await self.setup_sse_consumer(task_id_params.id, True)
@@ -318,8 +355,8 @@ class AgentTaskManager(InMemoryTaskManager):
             )
 
     async def set_push_notification_info(
-        self, task_id: str, push_notification_config: PushNotificationConfig
-    ):
+        self, task_id: TaskId, push_notification_config: PushNotificationConfig
+    ) -> bool:
         # Verify the ownership of notification URL by issuing a challenge request.
         is_verified = await self.notification_sender_auth.verify_push_notification_url(
             push_notification_config.url

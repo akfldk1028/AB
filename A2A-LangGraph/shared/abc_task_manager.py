@@ -3,7 +3,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import AsyncIterable, List, Union
 
-from custom_types import (
+from .custom_types import (
     Artifact,
     CancelTaskRequest,
     CancelTaskResponse,
@@ -33,7 +33,8 @@ from custom_types import (
     TaskStatus,
     TaskStatusUpdateEvent,
 )
-from utils import new_not_implemented_error
+from . import utils
+from .utils import new_not_implemented_error
 
 logger = logging.getLogger(__name__)
 

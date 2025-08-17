@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude --context \"agents/claude_cli/frontend/CLAUDE.md\" --system \"You are a Frontend Developer expert\" \"Create a simple React component file called HelloWorld.jsx that displays ''Hello from Frontend Agent!''\")",
+      "Bash(claude --print \"Create a simple React component file called HelloWorld.jsx that displays ''Hello from Frontend Agent!''\")",
+      "Bash(claude --print \"Create a simple React component called A2ADemo.jsx that makes an HTTP request to http://localhost:8021/api/message and displays the response. Use fetch API and handle loading/error states.\")",
+      "Bash(mkdir:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

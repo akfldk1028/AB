@@ -1,0 +1,18 @@
+{
+  "jsonrpc": "2.0",
+  "id": "test_backend_api",
+  "method": "message/send",
+  "params": {
+    "message": {
+      "messageId": "msg_backend_test",
+      "taskId": "task_backend_api_test",
+      "contextId": "session_test",
+      "parts": [
+        {
+          "kind": "text",
+          "text": "Create a simple REST API endpoint for user registration with FastAPI"
+        }
+      ]
+    }
+  }
+}

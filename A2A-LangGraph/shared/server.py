@@ -7,8 +7,8 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from sse_starlette.sse import EventSourceResponse
 
-from abc_task_manager import TaskManager
-from custom_types import (
+from .abc_task_manager import TaskManager
+from .custom_types import (
     A2ARequest,
     AgentCard,
     CancelTaskRequest,

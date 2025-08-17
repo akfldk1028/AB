@@ -1,0 +1,1 @@
+# Test package for Claude CLI Multi-Agent A2A System
