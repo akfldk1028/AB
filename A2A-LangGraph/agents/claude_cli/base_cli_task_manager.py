@@ -197,7 +197,7 @@ class CLIAgentTaskManager(InMemoryTaskManager):
 
     async def on_a2a_message_send(self, request: A2AMessageSendRequest) -> A2AMessageSendResponse:
         """Handles the official A2A 'message/send' request."""
-        print(f"DEBUG: A2A message/send received: {request.params.message}")
+        print(f"DEBUG: A2A message/send received: message_id={request.params.message.messageId}")
         
         # Extract message text from A2A format
         message_text = ""
@@ -233,7 +233,7 @@ class CLIAgentTaskManager(InMemoryTaskManager):
                     task_id, task_status, [artifact]
                 )
                 
-                print(f"DEBUG: A2A message/send completed: {task}")
+                print(f"DEBUG: A2A message/send completed: task_id={task_id}")
                 return A2AMessageSendResponse(id=request.id, result=task)
             else:
                 # Create input required task
@@ -244,14 +244,16 @@ class CLIAgentTaskManager(InMemoryTaskManager):
                 
                 task = await self.update_store(task_id, task_status, None)
                 
-                print(f"DEBUG: A2A message/send input required: {task}")
+                print(f"DEBUG: A2A message/send input required: task_id={task_id}")
                 return A2AMessageSendResponse(id=request.id, result=task)
                 
         except Exception as e:
             logger.error(f"Error in A2A message/send: {e}")
+            # Ensure error message is ASCII-safe for Windows encoding
+            error_msg = str(e).encode('ascii', 'replace').decode('ascii')
             return A2AMessageSendResponse(
                 id=request.id,
-                error=InternalError(message=f"Error processing A2A message: {e}")
+                error=InternalError(message=f"Error processing A2A message: {error_msg}")
             )
 
     async def on_send_task_subscribe(

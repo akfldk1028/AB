@@ -2,15 +2,15 @@
 
 ## 🎯 시스템 개념
 
-Claude CLI와 자연스럽게 대화하면, AI가 자동으로 적절한 전문 agent들을 호출하고 A2A 프로토콜로 협업하는 시스템입니다.
+Host Agent (현재 Claude 세션)가 사용자와 대화하며, 필요시 A2A 프로토콜로 전문 Worker Agent들과 협업하는 시스템입니다.
 
 ```
-사용자 ↔ Claude CLI (자연 대화)
-           ↓ AI가 자동 판단
+사용자 ↔ Host Agent (현재 Claude CLI)
+           ↓ call_a2a_agent() 함수 호출
     ┌─────────────────────────┐
-    │  Multi-Agent 협업      │
+    │  A2A Worker Agents     │
     │ Frontend ↔ Backend ↔ Unity │
-    │    (A2A Protocol)      │
+    │ (각각 독립 Claude AI)    │
     └─────────────────────────┘
 ```
 
@@ -24,24 +24,24 @@ Claude CLI와 자연스럽게 대화하면, AI가 자동으로 적절한 전문 
 
 #### 터미널 1: Frontend Agent (포트 8010)
 ```bash
-cd "D:\Data\05_CGXR\A2A\LangGrpah\A2A-LangGraph"
-python -m agents.claude_cli.frontend.server
+cd "D:\Data\05_CGXR\A2A\LangGrpah\A2A-LangGraph\agents\claude_cli\frontend"
+python server.py
 
 # 종료: Ctrl+C 또는 터미널 닫기
 ```
 
 #### 터미널 2: Backend Agent (포트 8021)  
 ```bash
-cd "D:\Data\05_CGXR\A2A\LangGrpah\A2A-LangGraph"
-python -m agents.claude_cli.backend.server
+cd "D:\Data\05_CGXR\A2A\LangGrpah\A2A-LangGraph\agents\claude_cli\backend"
+python server.py
 
 # 종료: Ctrl+C 또는 터미널 닫기
 ```
 
 #### 터미널 3: Unity Agent (포트 8012)
 ```bash
-cd "D:\Data\05_CGXR\A2A\LangGrpah\A2A-LangGraph"
-python -m agents.claude_cli.unity.server
+cd "D:\Data\05_CGXR\A2A\LangGrpah\A2A-LangGraph\agents\claude_cli\unity"
+python server.py
 
 # 종료: Ctrl+C 또는 터미널 닫기
 ```
@@ -67,9 +67,9 @@ start_all_agents.bat
 cd "D:\Data\05_CGXR\A2A\LangGrpah\A2A-LangGraph"
 
 # 백그라운드에서 모든 agent 실행
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "python -m agents.claude_cli.frontend.server"
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "python -m agents.claude_cli.backend.server" 
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "python -m agents.claude_cli.unity.server"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd agents\claude_cli\frontend; python server.py"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd agents\claude_cli\backend; python server.py" 
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd agents\claude_cli\unity; python server.py"
 
 echo "All agents starting... Check the opened windows for status"
 ```
@@ -79,9 +79,9 @@ echo "All agents starting... Check the opened windows for status"
 @echo off
 cd /d "D:\Data\05_CGXR\A2A\LangGrpah\A2A-LangGraph"
 
-start "Frontend Agent (8010)" cmd /k python -m agents.claude_cli.frontend.server
-start "Backend Agent (8021)" cmd /k python -m agents.claude_cli.backend.server  
-start "Unity Agent (8012)" cmd /k python -m agents.claude_cli.unity.server
+start "Frontend Agent (8010)" cmd /k "cd agents\claude_cli\frontend && python server.py"
+start "Backend Agent (8021)" cmd /k "cd agents\claude_cli\backend && python server.py"  
+start "Unity Agent (8012)" cmd /k "cd agents\claude_cli\unity && python server.py"
 ```
 
 ### 2단계: Claude CLI 시작
@@ -311,7 +311,7 @@ claude
 
 ## ✅ 성공 확인 체크리스트
 
-- [ ] Agent 서버 3개 모두 실행 중 (포트 8010, 8011, 8012)
+- [ ] Agent 서버 3개 모두 실행 중 (포트 8010, 8021, 8012)
 - [ ] `claude` 명령어로 CLI 정상 시작
 - [ ] 자연어 요청 시 적절한 agent 자동 호출
 - [ ] Multi-agent 작업 시 A2A 협업 동작

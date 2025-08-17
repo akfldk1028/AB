@@ -1,0 +1,48 @@
+## REST API Design Complete
+
+I've created a simple REST API endpoint for getting user profiles by ID with the following features:
+
+### **Endpoint**: `GET /api/v1/users/{user_id}`
+
+### **Key Features**:
+- **FastAPI Framework** for automatic validation and documentation
+- **Pydantic Models** for request/response validation
+- **Proper HTTP status codes** (200, 404, 400)
+- **Comprehensive error handling**
+- **Mock database** with 3 sample users
+- **OpenAPI documentation** auto-generated
+
+### **Response Format**:
+```json
+{
+  "id": 1,
+  "username": "johndoe",
+  "email": "john.doe@example.com",
+  "full_name": "John Doe",
+  "bio": "Software developer passionate about APIs",
+  "avatar_url": "https://api.example.com/avatars/johndoe.jpg",
+  "created_at": "2024-01-15T10:30:00",
+  "updated_at": "2024-12-01T14:45:00",
+  "is_active": true
+}
+```
+
+### **To Run**:
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Start the API
+python user_profile_api.py
+
+# API will be available at http://localhost:8000
+# Docs at http://localhost:8000/docs
+```
+
+### **Test the API**:
+```bash
+# Run test script
+python test_api.py
+```
+
+The API includes proper validation, error handling, and follows REST best practices with versioning (`/api/v1/`).

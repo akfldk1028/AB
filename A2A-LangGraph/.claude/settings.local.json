@@ -4,7 +4,21 @@
       "Bash(claude --context \"agents/claude_cli/frontend/CLAUDE.md\" --system \"You are a Frontend Developer expert\" \"Create a simple React component file called HelloWorld.jsx that displays ''Hello from Frontend Agent!''\")",
       "Bash(claude --print \"Create a simple React component file called HelloWorld.jsx that displays ''Hello from Frontend Agent!''\")",
       "Bash(claude --print \"Create a simple React component called A2ADemo.jsx that makes an HTTP request to http://localhost:8021/api/message and displays the response. Use fetch API and handle loading/error states.\")",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs",
+      "WebFetch(domain:docs.anthropic.com)",
+      "WebSearch",
+      "WebFetch(domain:medium.com)",
+      "Bash(python:*)",
+      "Bash(curl:*)",
+      "Bash(mv:*)",
+      "Bash(node:*)",
+      "Bash(npm:*)",
+      "Bash(claude --version)",
+      "Bash(where claude)",
+      "Bash(echo $PATH)",
+      "mcp__sequential-thinking__sequentialthinking"
     ],
     "deny": [],
     "ask": []

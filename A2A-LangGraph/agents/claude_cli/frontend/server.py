@@ -85,7 +85,7 @@ def main():
     )
     
     print("[Frontend Agent] Starting A2A server on port 8010...")
-    print("[Frontend Agent] Agent card available at: http://localhost:8010/.well-known/agent.json")
+    print("[Frontend Agent] Agent card available at: http://localhost:8110/.well-known/agent.json")
     print("[Frontend Agent] Ready to receive frontend development tasks via A2A protocol")
     print("[Frontend Agent] Using Claude CLI for response generation")
     

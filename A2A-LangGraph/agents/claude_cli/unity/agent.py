@@ -60,12 +60,14 @@ class UnityCLIAgent:
         Invoke Claude CLI as a subprocess and get response
         """
         try:
-            # Build Claude CLI command (using mock for testing)
-            mock_claude_path = Path(__file__).parent.parent.parent.parent / "mock_claude.py"
+            # Build Claude CLI command - using real Claude CLI with absolute path
+            claude_path = r"C:\Users\SOGANG\AppData\Roaming\npm\claude.cmd"
             cmd: CommandList = [
-                "python", str(mock_claude_path),
-                "--context", str(self.claude_context_path),
-                "--system", self.SYSTEM_INSTRUCTION,
+                claude_path,
+                "--print",  # Non-interactive mode
+                "--permission-mode", "bypassPermissions",  # Bypass permissions for A2A
+                "--add-dir", str(self.claude_context_path.parent),  # Add agent directory for CLAUDE.md
+                "--append-system-prompt", self.SYSTEM_INSTRUCTION,
                 query
             ]
             
@@ -77,10 +79,10 @@ class UnityCLIAgent:
                 text=False
             )
             
-            # Wait for completion with timeout
+            # Wait for completion with timeout (extended for complex requests)
             stdout, stderr = await asyncio.wait_for(
                 process.communicate(),
-                timeout=60.0
+                timeout=300.0  # 5 minutes for complex AI responses
             )
             
             # Decode output
@@ -105,7 +107,7 @@ class UnityCLIAgent:
             return {
                 "is_task_complete": False,
                 "require_user_input": True,
-                "content": "Claude CLI request timed out after 60 seconds"
+                "content": "Claude CLI request timed out after 5 minutes"
             }
         except FileNotFoundError:
             return {
