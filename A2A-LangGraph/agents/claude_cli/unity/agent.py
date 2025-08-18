@@ -60,29 +60,29 @@ class UnityCLIAgent:
         Invoke Claude CLI as a subprocess and get response
         """
         try:
-            # Build Claude CLI command - using real Claude CLI with absolute path
-            claude_path = r"C:\Users\SOGANG\AppData\Roaming\npm\claude.cmd"
+            # Build Claude CLI command - using claude.cmd for Windows compatibility and stdin
             cmd: CommandList = [
-                claude_path,
+                "claude.cmd",
                 "--print",  # Non-interactive mode
                 "--permission-mode", "bypassPermissions",  # Bypass permissions for A2A
                 "--add-dir", str(self.claude_context_path.parent),  # Add agent directory for CLAUDE.md
-                "--append-system-prompt", self.SYSTEM_INSTRUCTION,
-                query
+                "--append-system-prompt", self.SYSTEM_INSTRUCTION
             ]
             
-            # Run Claude CLI subprocess
+            # Run Claude CLI subprocess with stdin
             process = await asyncio.create_subprocess_exec(
                 *cmd,
+                stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=False
             )
             
-            # Wait for completion with timeout (extended for complex requests)
+            # Send query via stdin and wait for completion with timeout
+            query_bytes = query.encode('utf-8')
             stdout, stderr = await asyncio.wait_for(
-                process.communicate(),
-                timeout=300.0  # 5 minutes for complex AI responses
+                process.communicate(input=query_bytes),
+                timeout=600.0  # 10 minutes for complex AI responses and A2A communication
             )
             
             # Decode output

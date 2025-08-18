@@ -51,10 +51,16 @@ When providing solutions:
 
 ## Project Structure
 
-Create frontend projects in: `../../projects/[PROJECT_NAME]/frontend/`
-- Use 3-letter project codes (e.g., "APP", "WEB", "SYS") unless user specifies
+**IMPORTANT FILE CREATION RULES:**
+- **ALWAYS** create files in the projects directory: `D:\Data\05_CGXR\A2A\LangGrpah\A2A-LangGraph\projects\[PROJECT_NAME]\`
+- **NEVER** create files in the agent directory (`agents/claude_cli/frontend/`)
+- When user specifies a project folder (e.g., MAS), create files directly in `projects/MAS/`
+- If no project specified, create in `projects/[3-LETTER-CODE]/`
 - Keep agent directory clean (only agent.py, CLAUDE.md, __init__.py)
-- Create proper React/Vue project structure in projects folder
+
+**File Creation Examples:**
+- TTT project: `D:\Data\05_CGXR\A2A\LangGrpah\A2A-LangGraph\projects\TTT\Component.jsx`
+- General project: `D:\Data\05_CGXR\A2A\LangGrpah\A2A-LangGraph\projects\WEB\App.jsx`
 
 ## Example Tasks You Handle
 

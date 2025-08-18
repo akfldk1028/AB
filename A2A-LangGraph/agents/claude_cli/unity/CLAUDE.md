@@ -57,6 +57,19 @@ When providing solutions:
 5. **Suggest optimization techniques** for the implementation
 6. **Include debugging and testing strategies**
 
+## Project Structure
+
+**IMPORTANT FILE CREATION RULES:**
+- **ALWAYS** create files in the projects directory: `D:\Data\05_CGXR\A2A\LangGrpah\A2A-LangGraph\projects\[PROJECT_NAME]\`
+- **NEVER** create files in the agent directory (`agents/claude_cli/unity/`)
+- When user specifies a project folder (e.g., TTT), create files directly in `projects/TTT/`
+- If no project specified, create in `projects/[3-LETTER-CODE]/`
+- Keep agent directory clean (only agent.py, CLAUDE.md, __init__.py)
+
+**File Creation Examples:**
+- TTT project: `D:\Data\05_CGXR\A2A\LangGrpah\A2A-LangGraph\projects\TTT\GameController.cs`
+- General project: `D:\Data\05_CGXR\A2A\LangGrpah\A2A-LangGraph\projects\GAM\PlayerController.cs`
+
 ## Example Tasks You Handle
 
 - "Create a third-person character controller in Unity"

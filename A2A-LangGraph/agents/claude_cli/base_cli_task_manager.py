@@ -18,6 +18,7 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from shared import utils as utils
 from shared.abc_task_manager import InMemoryTaskManager
+from shared.a2a_conversation_logger import log_a2a_request, log_a2a_response, log_a2a_error
 from shared.custom_types import (
     Artifact,
     InternalError,
@@ -40,11 +41,23 @@ from shared.custom_types import (
     A2AMessageSendRequest,
     A2AMessageSendResponse,
     A2AMessage,
-    A2AMessagePart,
+    A2ATextPart,
+    A2APart,
+    A2AMessageResponse,
+    A2ATaskResponse,
+    MessageSendParams,
+    ContentTypeNotSupportedError,
 )
 from shared.push_notification_auth import PushNotificationSenderAuth
+from shared.a2a_conversation_logger import (
+    get_conversation_logger,
+    log_a2a_request,
+    log_a2a_response,
+    log_a2a_error
+)
 
 logger = logging.getLogger(__name__)
+a2a_logger = get_conversation_logger()
 
 # Type aliases for better maintainability
 AgentResponse: TypeAlias = Dict[str, Any]
@@ -80,6 +93,90 @@ class CLIAgentTaskManager(InMemoryTaskManager):
         self.agent = agent
         self.notification_sender_auth = notification_sender_auth
 
+    async def on_a2a_message_send(self, request: A2AMessageSendRequest) -> JSONRPCResponse:
+        """Handle A2A message/send requests"""
+        try:
+            # Log the incoming request
+            log_a2a_request("client", self.agent.__class__.__name__, request)
+            
+            # Extract message params
+            params: MessageSendParams = request.params
+            message = params.message
+            
+            # Convert A2A message parts to query string
+            query_parts = []
+            for part in message.parts:
+                if hasattr(part, 'text'):
+                    query_parts.append(part.text)
+                elif hasattr(part, 'data'):
+                    query_parts.append(str(part.data))
+            
+            query = ' '.join(query_parts)
+            session_id = message.contextId or "default_session"
+            
+            # Invoke the Claude CLI agent
+            start_time = asyncio.get_event_loop().time()
+            result = await self.agent.invoke_async(query, session_id)
+            duration_ms = (asyncio.get_event_loop().time() - start_time) * 1000
+            
+            # Create response based on result
+            if result.get("is_task_complete", False):
+                # Return as completed task
+                task_response = A2ATaskResponse(
+                    id=f"task_{message.messageId}",
+                    contextId=message.contextId or f"ctx_{session_id}",
+                    status=TaskStatus(state=TaskState.COMPLETED),
+                    artifacts=[
+                        Artifact(
+                            artifactId=f"artifact_{message.messageId}",
+                            parts=[
+                                A2ATextPart(
+                                    kind="text",
+                                    text=result.get("content", "")
+                                )
+                            ]
+                        )
+                    ],
+                    kind="task"
+                )
+                response = A2AMessageSendResponse(
+                    id=request.id,
+                    result=task_response
+                )
+            else:
+                # Return as message
+                message_response = A2AMessageResponse(
+                    role="agent",
+                    parts=[
+                        A2ATextPart(
+                            kind="text",
+                            text=result.get("content", "")
+                        )
+                    ],
+                    messageId=f"resp_{message.messageId}",
+                    contextId=message.contextId,
+                    kind="message"
+                )
+                response = A2AMessageSendResponse(
+                    id=request.id,
+                    result=message_response
+                )
+            
+            # Log the response
+            log_a2a_response("client", self.agent.__class__.__name__, response, duration_ms)
+            
+            return response
+            
+        except Exception as e:
+            logger.error(f"Error in A2A message handling: {e}")
+            log_a2a_error("on_a2a_message_send", e, self.agent.__class__.__name__)
+            
+            error_response = A2AMessageSendResponse(
+                id=request.id,
+                error=InternalError(data={"error": str(e)})
+            )
+            return error_response
+
     async def _run_streaming_agent(self, request: SendTaskStreamingRequest) -> None:
         task_send_params: TaskSendParams = request.params
         query = self._get_user_query(task_send_params)
@@ -90,15 +187,15 @@ class CLIAgentTaskManager(InMemoryTaskManager):
                 require_user_input = item["require_user_input"]
                 artifact = None
                 message = None
-                parts = [{"type": "text", "text": item["content"]}]
+                parts = [A2ATextPart(kind="text", text=item["content"])]
                 end_stream = False
 
                 if not is_task_complete and not require_user_input:
                     task_state = TaskState.WORKING
-                    message = Message(role="agent", parts=parts)
+                    message = A2AMessage(role="agent", parts=parts)
                 elif require_user_input:
                     task_state = TaskState.INPUT_REQUIRED
-                    message = Message(role="agent", parts=parts)
+                    message = A2AMessage(role="agent", parts=parts)
                     end_stream = True
                 else:
                     task_state = TaskState.COMPLETED
@@ -196,8 +293,10 @@ class CLIAgentTaskManager(InMemoryTaskManager):
         return await self._process_agent_response(request, agent_response)
 
     async def on_a2a_message_send(self, request: A2AMessageSendRequest) -> A2AMessageSendResponse:
-        """Handles the official A2A 'message/send' request."""
-        print(f"DEBUG: A2A message/send received: message_id={request.params.message.messageId}")
+        """Handles the official A2A 'message/send' request using Python A2A style."""
+        import uuid
+        
+        print(f"[A2A] message/send received: message_id={request.params.message.messageId}")
         
         # Extract message text from A2A format
         message_text = ""
@@ -205,51 +304,81 @@ class CLIAgentTaskManager(InMemoryTaskManager):
             if part.kind == "text":
                 message_text += part.text
         
-        # Convert A2A message to internal task format
-        task_id = request.params.message.taskId
-        session_id = request.params.message.contextId
+        print(f"[A2A] Extracted text: {message_text[:100]}...")
         
-        # Create task params for the A2A message
-        task_send_params = TaskSendParams(
-            id=task_id,
-            sessionId=session_id,
-            message=Message(role="user", parts=[TextPart(text=message_text)])
-        )
+        # Generate task and session IDs
+        task_id = request.params.message.taskId or str(uuid.uuid4())
+        session_id = request.params.message.contextId or str(uuid.uuid4())
         
         try:
-            # First create the task in the store
-            await self.upsert_task(task_send_params)
+            print(f"[A2A] Calling agent.invoke_async with: {message_text[:50]}...")
             
-            # Get agent response
+            # Get agent response directly (simplified approach)
             agent_response = await self.agent.invoke_async(message_text, session_id)
             
-            # Convert response to A2A format
+            print(f"[A2A] Agent response received: {agent_response.get('is_task_complete', False)}")
+            
+            # Create simple A2A response based on Python A2A patterns
             if agent_response.get("is_task_complete", False):
-                # Create completed task
-                task_status = TaskStatus(state=TaskState.COMPLETED)
-                artifact = Artifact(parts=[TextPart(text=agent_response["content"])])
+                # Create completed task response
+                content = agent_response.get("content", "Task completed")
                 
-                task = await self.update_store(
-                    task_id, task_status, [artifact]
+                # Create artifact with the response
+                artifact = Artifact(
+                    artifactId=str(uuid.uuid4()),
+                    parts=[A2ATextPart(kind="text", text=content)]
                 )
                 
-                print(f"DEBUG: A2A message/send completed: task_id={task_id}")
-                return A2AMessageSendResponse(id=request.id, result=task)
+                # Create task response
+                task_response = A2ATaskResponse(
+                    id=task_id,
+                    contextId=session_id,
+                    status=TaskStatus(state=TaskState.COMPLETED),
+                    artifacts=[artifact],
+                    kind="task"
+                )
+                
+                print(f"[A2A] Returning completed task: {task_id}")
+                return A2AMessageSendResponse(id=request.id, result=task_response)
             else:
-                # Create input required task
-                task_status = TaskStatus(
-                    state=TaskState.INPUT_REQUIRED,
-                    message=Message(role="agent", parts=[TextPart(text=agent_response["content"])])
+                # Task needs more input or is in progress
+                content = agent_response.get("content", "Task in progress")
+                
+                task_response = A2ATaskResponse(
+                    id=task_id,
+                    contextId=session_id,
+                    status=TaskStatus(
+                        state=TaskState.INPUT_REQUIRED,
+                        message=Message(
+                            role="agent",
+                            parts=[TextPart(type="text", text=content)]
+                        )
+                    ),
+                    kind="task"
                 )
                 
-                task = await self.update_store(task_id, task_status, None)
-                
-                print(f"DEBUG: A2A message/send input required: task_id={task_id}")
-                return A2AMessageSendResponse(id=request.id, result=task)
+                print(f"[A2A] Returning input-required task: {task_id}")
+                return A2AMessageSendResponse(id=request.id, result=task_response)
                 
         except Exception as e:
             logger.error(f"Error in A2A message/send: {e}")
-            # Ensure error message is ASCII-safe for Windows encoding
+            print(f"[A2A] Error: {str(e)}")
+            
+            # Return error response
+            error_task = A2ATaskResponse(
+                id=task_id,
+                contextId=session_id,
+                status=TaskStatus(
+                    state=TaskState.FAILED,
+                    message=Message(
+                        role="agent", 
+                        parts=[TextPart(type="text", text=f"Error: {str(e)}")]
+                    )
+                ),
+                kind="task"
+            )
+            
+            return A2AMessageSendResponse(id=request.id, result=error_task)
             error_msg = str(e).encode('ascii', 'replace').decode('ascii')
             return A2AMessageSendResponse(
                 id=request.id,
@@ -304,12 +433,12 @@ class CLIAgentTaskManager(InMemoryTaskManager):
         history_length = task_send_params.historyLength
         task_status = None
 
-        parts = [{"type": "text", "text": agent_response["content"]}]
+        parts = [A2ATextPart(kind="text", text=agent_response["content"])]
         artifact = None
         if agent_response["require_user_input"]:
             task_status = TaskStatus(
                 state=TaskState.INPUT_REQUIRED,
-                message=Message(role="agent", parts=parts),
+                message=A2AMessage(role="agent", parts=parts),
             )
         else:
             task_status = TaskStatus(state=TaskState.COMPLETED)

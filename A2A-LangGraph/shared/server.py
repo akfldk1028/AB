@@ -25,7 +25,7 @@ from .custom_types import (
     A2AMessageSendRequest,
     A2AMessageSendResponse,
     A2AMessage,
-    A2AMessagePart,
+    A2APart,
 )
 
 logger = logging.getLogger(__name__)
@@ -61,6 +61,13 @@ class A2AServer:
             methods=["GET"],
             response_model=None,
         )
+        # A2A Inspector compatibility - also serve at agent-card.json
+        self.app.add_api_route(
+            "/.well-known/agent-card.json",
+            self._get_agent_card,
+            methods=["GET"],
+            response_model=None,
+        )
 
     def start(self):
         if self.agent_card is None:
@@ -80,9 +87,87 @@ class A2AServer:
     ) -> Union[JSONResponse, EventSourceResponse]:
         try:
             body = await request.json()
-            json_rpc_request = A2ARequest.validate_python(body)
+            logger.info(f"Request method: {body.get('method')}")
+            logger.info(f"Request body keys: {list(body.keys())}")
+            logger.info(f"Params keys: {list(body.get('params', {}).keys())}")
+            
+            # Handle Google A2A message/send requests directly with manual parsing
+            method = body.get('method')
+            logger.info(f"Checking method: '{method}' (type: {type(method)})")
+            if method == 'message/send':
+                logger.info("Processing Google A2A message/send request")
+                try:
+                    # Manually construct A2AMessageSendRequest
+                    from shared.custom_types import A2AMessageSendRequest, MessageSendParams, A2AMessage, A2ATextPart
+                    
+                    # Extract message parts
+                    message_data = body.get('params', {}).get('message', {})
+                    parts = []
+                    for part_data in message_data.get('parts', []):
+                        if part_data.get('kind') == 'text':
+                            parts.append(A2ATextPart(
+                                kind='text',
+                                text=part_data.get('text', ''),
+                                mimeType=part_data.get('mimeType', 'text/plain')
+                            ))
+                    
+                    # Create A2A message
+                    a2a_message = A2AMessage(
+                        role=message_data.get('role', 'user'),
+                        parts=parts,
+                        messageId=message_data.get('messageId', 'auto'),
+                        kind='message'
+                    )
+                    
+                    # Create parameters
+                    params = MessageSendParams(message=a2a_message)
+                    
+                    # Create request
+                    json_rpc_request = A2AMessageSendRequest(
+                        id=body.get('id', 'auto'),
+                        params=params
+                    )
+                    
+                    logger.info(f"Successfully manually parsed A2A message/send request")
+                except Exception as e:
+                    logger.error(f"Failed to manually parse A2A message/send: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    # Return error immediately
+                    from shared.custom_types import InvalidRequestError, JSONRPCResponse
+                    return JSONResponse(
+                        JSONRPCResponse(
+                            id=body.get('id'),
+                            error=InvalidRequestError(data=str(e))
+                        ).model_dump(exclude_none=True),
+                        status_code=400
+                    )
+            else:
+                # Only use TypeAdapter for non-A2A requests
+                try:
+                    json_rpc_request = A2ARequest.validate_python(body)
+                except Exception as e:
+                    logger.error(f"Failed to parse non-A2A request: {e}")
+                    return JSONResponse(
+                        JSONRPCResponse(
+                            id=body.get('id'),
+                            error=InvalidRequestError(data=str(e))
+                        ).model_dump(exclude_none=True),
+                        status_code=400
+                    )
+                
+            logger.info(f"Parsed as: {type(json_rpc_request).__name__}")
 
-            if isinstance(json_rpc_request, GetTaskRequest):
+            if isinstance(json_rpc_request, A2AMessageSendRequest):
+                result = await self.task_manager.on_a2a_message_send(
+                    json_rpc_request
+                )
+            elif isinstance(json_rpc_request, A2AMessageStreamRequest):
+                # Handle A2A message streaming (future implementation)
+                result = await self.task_manager.on_a2a_message_send(
+                    json_rpc_request
+                )
+            elif isinstance(json_rpc_request, GetTaskRequest):
                 result = await self.task_manager.on_get_task(json_rpc_request)
             elif isinstance(json_rpc_request, SendTaskRequest):
                 result = await self.task_manager.on_send_task(json_rpc_request)
@@ -102,10 +187,6 @@ class A2AServer:
                 )
             elif isinstance(json_rpc_request, TaskResubscriptionRequest):
                 result = await self.task_manager.on_resubscribe_to_task(
-                    json_rpc_request
-                )
-            elif isinstance(json_rpc_request, A2AMessageSendRequest):
-                result = await self.task_manager.on_a2a_message_send(
                     json_rpc_request
                 )
             else:
