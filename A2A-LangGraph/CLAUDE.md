@@ -63,17 +63,23 @@ def call_a2a_agent(agent_type: str, task: str) -> str:
     
     url = f"http://localhost:{port}/"
     
-    # A2A protocol message format
+    # Google A2A protocol message format (strictly compliant)
     message = {
         "jsonrpc": "2.0",
         "id": f"host_to_{agent_type}_{int(time.time())}",
         "method": "message/send",
         "params": {
             "message": {
+                "role": "user",
+                "parts": [
+                    {
+                        "kind": "text",
+                        "text": task,
+                        "mimeType": "text/plain"
+                    }
+                ],
                 "messageId": f"msg_{int(time.time())}",
-                "taskId": f"task_{int(time.time())}",
-                "contextId": "host_session",
-                "parts": [{"kind": "text", "text": task}]
+                "kind": "message"
             }
         }
     }
@@ -88,9 +94,12 @@ def call_a2a_agent(agent_type: str, task: str) -> str:
         response = requests.post(
             url, 
             json=message, 
-            headers={"Content-Type": "application/json"},
-            timeout=360  # 6 minutes for complex AI responses
+            headers={"Content-Type": "application/json; charset=utf-8"},
+            timeout=600  # 10 minutes for complex AI responses and A2A communication
         )
+        
+        # Ensure response is properly encoded
+        response.encoding = 'utf-8'
         
         if response.status_code == 200:
             result = response.json()
@@ -289,10 +298,13 @@ print(result)
 ## STRICT RULES FOR HOST AGENT
 
 - ❌ **NEVER** do specialized development work yourself - delegate to A2A agents
+- ❌ **NEVER** use Write, Edit, MultiEdit, or any file creation tools - only A2A Worker Agents create files
+- ❌ **NEVER** create files directly in the filesystem - this violates the A2A architecture
 - ✅ **ALWAYS** route technical tasks to appropriate A2A specialists
 - ✅ **ALWAYS** use the `call_a2a_agent()` function for development requests
 - ✅ **ALWAYS** coordinate multi-agent workflows when needed
 - ✅ **MAINTAIN** A2A protocol compliance with Google ADK standards
+- ✅ **ONLY** coordinate, route, and integrate responses from Worker Agents
 
 ## Important Notes
 
