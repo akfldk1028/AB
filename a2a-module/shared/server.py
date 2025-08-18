@@ -1,6 +1,9 @@
 import json
 import logging
+import datetime
+import os
 from typing import Any, AsyncIterable, Union
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -29,6 +32,66 @@ from .custom_types import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def log_a2a_communication(agent_port: int, message_data: dict, response_data: dict = None) -> None:
+    """Log all A2A communications to a central log file"""
+    try:
+        # Determine agent type by port
+        agent_map = {
+            8030: "perception",
+            8031: "vision", 
+            8032: "ux_tts",
+            8033: "logger",
+            8010: "frontend",
+            8021: "backend", 
+            8012: "unity"
+        }
+        
+        agent_name = agent_map.get(agent_port, f"unknown_port_{agent_port}")
+        
+        # Create logs directory if it doesn't exist
+        logs_dir = Path(__file__).parent.parent / "logs" / "a2a_communications"
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create timestamped log file
+        timestamp = datetime.datetime.now()
+        log_filename = f"a2a_all_agents_{timestamp.strftime('%Y%m%d')}.log"
+        log_file = logs_dir / log_filename
+        
+        # Extract message content
+        message_text = ""
+        if message_data and 'params' in message_data:
+            message_content = message_data['params'].get('message', {})
+            parts = message_content.get('parts', [])
+            if parts and len(parts) > 0:
+                message_text = parts[0].get('text', '')
+        
+        # Create log entry
+        log_entry = {
+            "timestamp": timestamp.isoformat(),
+            "datetime": timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+            "agent_name": agent_name,
+            "agent_port": agent_port,
+            "message_type": "A2A_Communication",
+            "request_id": message_data.get('id', 'unknown'),
+            "method": message_data.get('method', 'unknown'),
+            "message_preview": message_text[:200] + "..." if len(message_text) > 200 else message_text,
+            "message_length": len(message_text),
+            "has_response": response_data is not None,
+            "raw_message": message_data,
+            "response": response_data
+        }
+        
+        # Write to log file
+        with open(log_file, 'a', encoding='utf-8') as f:
+            f.write(json.dumps(log_entry, indent=2, ensure_ascii=False) + "\n")
+            f.write("-" * 100 + "\n")
+            
+        print(f"[A2A Logging] Communication logged for {agent_name}:{agent_port}")
+        
+    except Exception as e:
+        print(f"[A2A Logging] Failed to log communication: {str(e)}")
 
 
 class A2AServer:
@@ -96,6 +159,10 @@ class A2AServer:
             logger.info(f"Checking method: '{method}' (type: {type(method)})")
             if method == 'message/send':
                 logger.info("Processing Google A2A message/send request")
+                
+                # 📝 LOG A2A COMMUNICATION - 모든 Agent 간 대화를 자동 기록
+                log_a2a_communication(self.port, body)
+                
                 try:
                     # Manually construct A2AMessageSendRequest
                     from shared.custom_types import A2AMessageSendRequest, MessageSendParams, A2AMessage, A2ATextPart
