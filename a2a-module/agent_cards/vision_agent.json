@@ -1,0 +1,63 @@
+{
+    "name": "Vision AI Agent",
+    "description": "VLM/LLM integration specialist for Google Glass (Android XR) vision processing",
+    "url": "http://localhost:8031/",
+    "version": "1.0.0",
+    "capabilities": {
+        "streaming": true,
+        "pushNotifications": true,
+        "stateTransitionHistory": false
+    },
+    "defaultInputModes": [
+        "text",
+        "text/plain",
+        "image/jpeg",
+        "image/png"
+    ],
+    "defaultOutputModes": [
+        "text",
+        "text/plain",
+        "application/json"
+    ],
+    "skills": [
+        {
+            "id": "vlm_processing",
+            "name": "Vision Language Model Processing",
+            "description": "Analyze images using GPT-4V, Moondream, Qwen2.5-VL for scene understanding in XR environments.",
+            "tags": [
+                "vlm", "gpt-4v", "moondream", "qwen", "scene-analysis", "xr"
+            ],
+            "examples": [
+                "Analyze Google Glass camera feed for object recognition",
+                "Process XR environment images with GPT-4V",
+                "Real-time scene understanding for AR overlays"
+            ]
+        },
+        {
+            "id": "multimodal_processing",
+            "name": "Multimodal AI Processing",
+            "description": "Combine visual, textual, and contextual data for comprehensive XR understanding.",
+            "tags": [
+                "multimodal", "context-aware", "conversation", "xr-integration"
+            ],
+            "examples": [
+                "Context-aware visual analysis with conversation history",
+                "Multi-turn XR interactions with visual understanding",
+                "Spatial understanding for XR environments"
+            ]
+        },
+        {
+            "id": "real_time_optimization",
+            "name": "Real-time Processing Optimization",
+            "description": "Low-latency vision processing optimized for XR performance requirements.",
+            "tags": [
+                "real-time", "optimization", "caching", "performance", "mobile"
+            ],
+            "examples": [
+                "Optimize vision processing for <2s response time",
+                "Implement hybrid cloud-local processing",
+                "Real-time image stream processing with caching"
+            ]
+        }
+    ]
+}

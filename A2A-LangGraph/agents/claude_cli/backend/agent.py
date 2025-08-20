@@ -24,8 +24,8 @@ from langgraph.checkpoint.memory import MemorySaver
 from shared.custom_types import (
     Task, TaskStatus, TaskState, Message, TextPart, Artifact
 )
-from shared.mcp_client import MCPClient
-from shared.smart_mcp_enhancer import create_smart_enhancer
+from shared.mcp.client import MCPClient
+from shared.mcp.enhancer import create_smart_enhancer
 
 memory = MemorySaver()
 
@@ -56,23 +56,18 @@ class BackendCLIAgent:
     
     def __init__(self) -> None:
         self.claude_context_path: Path = Path(__file__).parent / "CLAUDE.md"
-        self.smart_enhancer = create_smart_enhancer("backend development")
+        # Use port 8001 for A2A-LangGraph (8000 is used by a2a-module)
+        from shared.mcp.client import MCPClient
+        mcp_client = MCPClient(proxy_port=8001)
+        from shared.mcp.enhancer import SmartMCPEnhancer
+        self.smart_enhancer = SmartMCPEnhancer("backend development")
+        self.smart_enhancer.mcp_client = mcp_client
         
     def enhance_query_with_mcp(self, query: Query) -> str:
         """Intelligently enhance query using AI-driven MCP analysis"""
-        try:
-            enhanced_query = self.smart_enhancer.enhance_query_intelligently(query)
-            
-            # Get enhancement summary for logging
-            summary = self.smart_enhancer.get_enhancement_summary(query, enhanced_query)
-            print(f"[Backend Agent] Smart enhancement: {summary['enhancement_ratio']:.1f}x size, "
-                  f"Analysis: {summary['has_analysis']}, Docs: {summary['has_documentation']}")
-            
-            return enhanced_query
-            
-        except Exception as e:
-            print(f"[Backend Agent] Smart MCP enhancement failed: {str(e)}")
-            return query  # Return original query if MCP fails
+        # Temporarily disable MCP for testing
+        print(f"[Backend Agent] MCP temporarily disabled, using original query")
+        return query
         
     async def invoke_claude_cli(self, query: Query, session_id: SessionId) -> AgentResponse:
         """
@@ -129,7 +124,7 @@ class BackendCLIAgent:
             return {
                 "is_task_complete": False,
                 "require_user_input": True,
-                "content": "Claude CLI request timed out after 5 minutes"
+                "content": "Claude CLI request timed out after 10 minutes"
             }
         except FileNotFoundError:
             return {

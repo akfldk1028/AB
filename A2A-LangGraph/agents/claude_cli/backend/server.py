@@ -22,42 +22,50 @@ sys.path.append(str(Path(__file__).parent))
 from agent import BackendCLIAgent
 
 
-def create_backend_agent_card() -> AgentCard:
-    """Create the agent card for Backend Agent"""
-    return AgentCard(
-        url="http://localhost:8021",
-        name="Backend Development Agent",
-        description="Expert in APIs, databases, server architecture, and system design. Creates projects in separate project folders.",
-        version="1.0.0",
-        capabilities=AgentCapabilities(
-            streaming=True,
-            pushNotifications=True,
-            stateTransitionHistory=True
-        ),
-        skills=[
-            AgentSkill(
-                id="api_design",
-                name="API Design & Development",
-                description="Design and implement REST and GraphQL APIs",
-                tags=["api", "rest", "graphql", "endpoints"],
-                examples=["Create REST API for user management", "Design GraphQL schema for e-commerce"]
+def load_backend_agent_card() -> AgentCard:
+    """Load the agent card from JSON file"""
+    import json
+    
+    agent_card_path = Path(__file__).parent.parent.parent.parent / "agent_cards" / "backend_agent.json"
+    
+    try:
+        with open(agent_card_path, 'r', encoding='utf-8') as f:
+            card_data = json.load(f)
+        
+        # Convert JSON to AgentCard object
+        capabilities = AgentCapabilities(**card_data["capabilities"])
+        
+        skills = []
+        for skill_data in card_data.get("skills", []):
+            skill = AgentSkill(**skill_data)
+            skills.append(skill)
+        
+        return AgentCard(
+            url=card_data["url"],
+            name=card_data["name"],
+            description=card_data["description"],
+            version=card_data["version"],
+            capabilities=capabilities,
+            skills=skills,
+            defaultInputModes=card_data.get("defaultInputModes", ["text"]),
+            defaultOutputModes=card_data.get("defaultOutputModes", ["text"])
+        )
+    
+    except Exception as e:
+        print(f"[Backend Agent] Warning: Could not load agent card from JSON: {e}")
+        # Fallback to hardcoded card
+        return AgentCard(
+            url="http://localhost:8021",
+            name="Backend Development Agent",
+            description="Expert in APIs, databases, server architecture, and system design.",
+            version="1.0.0",
+            capabilities=AgentCapabilities(
+                streaming=True,
+                pushNotifications=True,
+                stateTransitionHistory=True
             ),
-            AgentSkill(
-                id="database_design",
-                name="Database Design & Optimization",
-                description="Design database schemas and optimize queries",
-                tags=["database", "sql", "nosql", "optimization"],
-                examples=["Design PostgreSQL schema for blog system", "Optimize MongoDB queries"]
-            ),
-            AgentSkill(
-                id="authentication",
-                name="Authentication & Security",
-                description="Implement secure authentication and authorization",
-                tags=["auth", "security", "jwt", "oauth"],
-                examples=["Implement JWT authentication", "Design OAuth2 flow"]
-            )
-        ]
-    )
+            skills=[]
+        )
 
 
 def main():
@@ -72,8 +80,8 @@ def main():
     notification_auth = PushNotificationSenderAuth()
     task_manager = CLIAgentTaskManager(agent, notification_auth)
     
-    # Create agent card
-    agent_card = create_backend_agent_card()
+    # Load agent card from JSON
+    agent_card = load_backend_agent_card()
     
     # Create and start server
     server = A2AServer(

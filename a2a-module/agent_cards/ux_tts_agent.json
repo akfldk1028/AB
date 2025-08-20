@@ -1,0 +1,63 @@
+{
+    "name": "UX & TTS Agent",
+    "description": "User experience design and text-to-speech systems for Google Glass (Android XR)",
+    "url": "http://localhost:8032/",
+    "version": "1.0.0",
+    "capabilities": {
+        "streaming": true,
+        "pushNotifications": true,
+        "stateTransitionHistory": false
+    },
+    "defaultInputModes": [
+        "text",
+        "text/plain",
+        "application/json"
+    ],
+    "defaultOutputModes": [
+        "text",
+        "text/plain",
+        "audio/wav",
+        "audio/mp3"
+    ],
+    "skills": [
+        {
+            "id": "xr_ux_design",
+            "name": "XR User Experience Design",
+            "description": "Material Design, Jetpack Compose, and XR-specific UI patterns for immersive experiences.",
+            "tags": [
+                "material-design", "jetpack-compose", "xr-ui", "hud", "spatial-ui"
+            ],
+            "examples": [
+                "Design HUD overlays for Google Glass",
+                "Create spatial UI components with Jetpack Compose",
+                "Implement voice-first interaction patterns"
+            ]
+        },
+        {
+            "id": "tts_integration",
+            "name": "Text-to-Speech Integration",
+            "description": "Android TTS, Google Cloud TTS, and ElevenLabs for natural voice synthesis in XR.",
+            "tags": [
+                "android-tts", "google-cloud-tts", "elevenlabs", "voice-synthesis", "audio"
+            ],
+            "examples": [
+                "Implement natural TTS for XR notifications",
+                "Create context-aware voice responses",
+                "Multi-language TTS support for global users"
+            ]
+        },
+        {
+            "id": "interaction_design",
+            "name": "XR Interaction Design",
+            "description": "Voice commands, gesture controls, and multimodal interaction patterns for XR environments.",
+            "tags": [
+                "voice-commands", "gesture-control", "multimodal", "accessibility", "interaction"
+            ],
+            "examples": [
+                "Design voice command system for hands-free control",
+                "Create gesture-based navigation for XR apps",
+                "Implement accessibility features for diverse users"
+            ]
+        }
+    ]
+}

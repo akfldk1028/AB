@@ -1,0 +1,65 @@
+{
+    "name": "Perception Agent",
+    "description": "Advanced computer vision and sensor data processing for Google Glass (Android XR)",
+    "url": "http://localhost:8030/",
+    "version": "1.0.0",
+    "capabilities": {
+        "streaming": true,
+        "pushNotifications": true,
+        "stateTransitionHistory": false
+    },
+    "defaultInputModes": [
+        "text",
+        "text/plain",
+        "image/jpeg",
+        "image/png",
+        "sensor/data"
+    ],
+    "defaultOutputModes": [
+        "text",
+        "text/plain",
+        "application/json",
+        "image/jpeg"
+    ],
+    "skills": [
+        {
+            "id": "computer_vision",
+            "name": "Computer Vision Processing",
+            "description": "OpenCV, MediaPipe, TensorFlow Lite for real-time image processing and object detection in XR.",
+            "tags": [
+                "opencv", "mediapipe", "tensorflow-lite", "object-detection", "image-processing"
+            ],
+            "examples": [
+                "Real-time object detection with TensorFlow Lite",
+                "Hand tracking and gesture recognition with MediaPipe",
+                "Image preprocessing for XR visual analysis"
+            ]
+        },
+        {
+            "id": "sensor_fusion",
+            "name": "Sensor Data Fusion",
+            "description": "IMU, camera, and environmental sensor integration for spatial understanding.",
+            "tags": [
+                "imu", "sensor-fusion", "spatial-tracking", "slam", "pose-estimation"
+            ],
+            "examples": [
+                "Fuse IMU and camera data for accurate head tracking",
+                "Implement SLAM for spatial mapping in XR",
+                "Real-time pose estimation for object placement"
+            ]
+        },
+        {
+            "id": "roi_extraction",
+            "name": "ROI Extraction & Preprocessing",
+            "description": "Region of Interest detection and image preprocessing for downstream AI analysis.",
+            "tags": [
+                "roi", "preprocessing", "image-segmentation", "feature-extraction"
+            ],
+            "examples": [
+                "Extract ROI from Google Glass camera feed",
+                "Preprocess images for Vision Agent analysis",
+                "Real-time image segmentation for object isolation"
+            ]
+        }
+    ]
+}

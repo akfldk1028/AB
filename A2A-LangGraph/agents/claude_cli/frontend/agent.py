@@ -24,7 +24,8 @@ from langgraph.checkpoint.memory import MemorySaver
 from shared.custom_types import (
     Task, TaskStatus, TaskState, Message, TextPart, Artifact
 )
-from shared.mcp_client import MCPClient
+from shared.mcp.client import MCPClient
+from shared.mcp.enhancer import create_smart_enhancer
 
 memory = MemorySaver()
 

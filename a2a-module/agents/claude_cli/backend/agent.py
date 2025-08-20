@@ -24,7 +24,8 @@ from langgraph.checkpoint.memory import MemorySaver
 from shared.custom_types import (
     Task, TaskStatus, TaskState, Message, TextPart, Artifact
 )
-from shared.mcp_client import MCPClient
+from shared.mcp.client import MCPClient
+from shared.mcp.enhancer import create_smart_enhancer
 
 memory = MemorySaver()
 
@@ -156,7 +157,7 @@ class BackendCLIAgent:
             return {
                 "is_task_complete": False,
                 "require_user_input": True,
-                "content": "Claude CLI request timed out after 5 minutes"
+                "content": "Claude CLI request timed out after 10 minutes"
             }
         except FileNotFoundError:
             return {
