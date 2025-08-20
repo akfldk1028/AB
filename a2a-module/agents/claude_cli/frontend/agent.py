@@ -24,6 +24,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from shared.custom_types import (
     Task, TaskStatus, TaskState, Message, TextPart, Artifact
 )
+from shared.mcp_client import MCPClient
 
 memory = MemorySaver()
 
@@ -54,12 +55,65 @@ class FrontendCLIAgent:
     
     def __init__(self) -> None:
         self.claude_context_path: Path = Path(__file__).parent / "CLAUDE.md"
+        self.mcp_client: MCPClient = MCPClient()
+        
+    
+    def enhance_query_with_mcp(self, query: Query) -> str:
+        """Enhance query with MCP tools for better responses"""
+        try:
+            # Check if query needs library documentation
+            library_keywords = ["react", "vue", "angular", "next", "nuxt", "tailwind", "bootstrap", "typescript", "javascript"]
+            found_library = None
+            
+            for keyword in library_keywords:
+                if keyword.lower() in query.lower():
+                    found_library = keyword
+                    break
+            
+            enhanced_query = query
+            
+            # Add sequential thinking for complex requests
+            if len(query.split()) > 10 or "design" in query.lower() or "architecture" in query.lower() or "implement" in query.lower():
+                try:
+                    thinking_result = self.mcp_client.sequential_thinking(
+                        f"Analyze this frontend development request: {query}"
+                    )
+                    enhanced_query += f"
+
+MCP Analysis: {thinking_result.get('thought_analysis', '')}"
+                except Exception:
+                    pass  # MCP not available, continue without it
+            
+            # Add library documentation if relevant
+            if found_library:
+                try:
+                    resolve_result = self.mcp_client.context7_resolve(found_library)
+                    if resolve_result.get("library_id"):
+                        docs_result = self.mcp_client.context7_docs(
+                            resolve_result["library_id"], 
+                            tokens=3000,
+                            topic="frontend development"
+                        )
+                        enhanced_query += f"
+
+Library Documentation: {docs_result.get('documentation', '')}"
+                except Exception:
+                    pass  # MCP not available, continue without it
+            
+            return enhanced_query
+            
+        except Exception as e:
+            print(f"[Frontend Agent] MCP enhancement failed: {str(e)}")
+            return query  # Return original query if MCP fails
         
     async def invoke_claude_cli(self, query: Query, session_id: SessionId) -> AgentResponse:
         """
         Invoke Claude CLI as a subprocess and get response
         """
         try:
+            # Enhance query with MCP tools
+            enhanced_query = self.enhance_query_with_mcp(query)
+            print(f"[Frontend Agent] Enhanced query length: {len(enhanced_query)} chars")
             # Build Claude CLI command - using claude.cmd for Windows compatibility and stdin
             cmd: CommandList = [
                 "claude.cmd",
@@ -79,7 +133,7 @@ class FrontendCLIAgent:
             )
             
             # Send query via stdin and wait for completion with timeout
-            query_bytes = query.encode('utf-8')
+            query_bytes = enhanced_query.encode('utf-8')
             stdout, stderr = await asyncio.wait_for(
                 process.communicate(input=query_bytes),
                 timeout=600.0  # 10 minutes for complex AI responses and A2A communication

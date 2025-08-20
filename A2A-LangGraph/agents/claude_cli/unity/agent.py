@@ -24,6 +24,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from shared.custom_types import (
     Task, TaskStatus, TaskState, Message, TextPart, Artifact
 )
+from shared.mcp_client import MCPClient
 
 memory = MemorySaver()
 
@@ -54,12 +55,60 @@ class UnityCLIAgent:
     
     def __init__(self) -> None:
         self.claude_context_path: Path = Path(__file__).parent / "CLAUDE.md"
+        self.mcp_client: MCPClient = MCPClient()
+        
+    def enhance_query_with_mcp(self, query: Query) -> str:
+        """Enhance query with MCP tools for better responses"""
+        try:
+            # Check if query needs Unity-specific documentation
+            unity_keywords = ["unity", "c#", "gameobject", "transform", "rigidbody", "shader", "animation", "multiplayer"]
+            found_keyword = None
+            
+            for keyword in unity_keywords:
+                if keyword.lower() in query.lower():
+                    found_keyword = keyword
+                    break
+            
+            enhanced_query = query
+            
+            # Add sequential thinking for complex requests
+            if len(query.split()) > 10 or "system" in query.lower() or "implement" in query.lower():
+                try:
+                    thinking_result = self.mcp_client.sequential_thinking(
+                        f"Analyze this Unity game development request: {query}"
+                    )
+                    enhanced_query += f"\n\nMCP Analysis: {thinking_result.get('thought_analysis', '')}"
+                except Exception:
+                    pass  # MCP not available, continue without it
+            
+            # Add Unity documentation context if relevant
+            if found_keyword:
+                try:
+                    resolve_result = self.mcp_client.context7_resolve("Unity")
+                    if resolve_result.get("library_id"):
+                        docs_result = self.mcp_client.context7_docs(
+                            resolve_result["library_id"], 
+                            tokens=3000,
+                            topic=f"Unity {found_keyword}"
+                        )
+                        enhanced_query += f"\n\nUnity Documentation: {docs_result.get('documentation', '')}"
+                except Exception:
+                    pass  # MCP not available, continue without it
+            
+            return enhanced_query
+            
+        except Exception as e:
+            print(f"[Unity Agent] MCP enhancement failed: {str(e)}")
+            return query  # Return original query if MCP fails
         
     async def invoke_claude_cli(self, query: Query, session_id: SessionId) -> AgentResponse:
         """
         Invoke Claude CLI as a subprocess and get response
         """
         try:
+            # Enhance query with MCP tools
+            enhanced_query = self.enhance_query_with_mcp(query)
+            print(f"[Unity Agent] Enhanced query length: {len(enhanced_query)} chars")
             # Build Claude CLI command - using claude.cmd for Windows compatibility and stdin
             cmd: CommandList = [
                 "claude.cmd",
@@ -78,8 +127,8 @@ class UnityCLIAgent:
                 text=False
             )
             
-            # Send query via stdin and wait for completion with timeout
-            query_bytes = query.encode('utf-8')
+            # Send enhanced query via stdin and wait for completion with timeout
+            query_bytes = enhanced_query.encode('utf-8')
             stdout, stderr = await asyncio.wait_for(
                 process.communicate(input=query_bytes),
                 timeout=600.0  # 10 minutes for complex AI responses and A2A communication

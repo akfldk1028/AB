@@ -24,6 +24,8 @@ from langgraph.checkpoint.memory import MemorySaver
 from shared.custom_types import (
     Task, TaskStatus, TaskState, Message, TextPart, Artifact
 )
+from shared.mcp_client import MCPClient
+from shared.smart_mcp_enhancer import create_smart_enhancer
 
 memory = MemorySaver()
 
@@ -54,12 +56,32 @@ class BackendCLIAgent:
     
     def __init__(self) -> None:
         self.claude_context_path: Path = Path(__file__).parent / "CLAUDE.md"
+        self.smart_enhancer = create_smart_enhancer("backend development")
+        
+    def enhance_query_with_mcp(self, query: Query) -> str:
+        """Intelligently enhance query using AI-driven MCP analysis"""
+        try:
+            enhanced_query = self.smart_enhancer.enhance_query_intelligently(query)
+            
+            # Get enhancement summary for logging
+            summary = self.smart_enhancer.get_enhancement_summary(query, enhanced_query)
+            print(f"[Backend Agent] Smart enhancement: {summary['enhancement_ratio']:.1f}x size, "
+                  f"Analysis: {summary['has_analysis']}, Docs: {summary['has_documentation']}")
+            
+            return enhanced_query
+            
+        except Exception as e:
+            print(f"[Backend Agent] Smart MCP enhancement failed: {str(e)}")
+            return query  # Return original query if MCP fails
         
     async def invoke_claude_cli(self, query: Query, session_id: SessionId) -> AgentResponse:
         """
         Invoke Claude CLI as a subprocess and get response
         """
         try:
+            # Enhance query with MCP tools
+            enhanced_query = self.enhance_query_with_mcp(query)
+            print(f"[Backend Agent] Enhanced query length: {len(enhanced_query)} chars")
             # Build Claude CLI command - using claude.cmd for Windows compatibility and stdin
             cmd: CommandList = [
                 "claude.cmd",
@@ -78,8 +100,8 @@ class BackendCLIAgent:
                 text=False
             )
             
-            # Send query via stdin and wait for completion with timeout
-            query_bytes = query.encode('utf-8')
+            # Send enhanced query via stdin and wait for completion with timeout
+            query_bytes = enhanced_query.encode('utf-8')
             stdout, stderr = await asyncio.wait_for(
                 process.communicate(input=query_bytes),
                 timeout=600.0  # 10 minutes for complex AI responses and A2A communication
